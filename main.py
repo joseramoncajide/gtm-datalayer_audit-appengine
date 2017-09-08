@@ -22,23 +22,18 @@ from pprint import pformat
 import jinja2
 import webapp2
 import time
-
 from google.appengine.api import app_identity
-from  google.appengine.ext import vendor
+from google.appengine.ext import vendor
 
 vendor.add('lib')
-
-from flask import Flask
-
-
-app = Flask(__name__)
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from google.cloud import storage
+from flask import Flask
+app = Flask(__name__)
 
-compute = discovery.build('compute','v1', credentials=GoogleCredentials.get_application_default())
-
+compute = discovery.build('compute', 'v1', credentials=GoogleCredentials.get_application_default())
 
 
 def create_bucket(bucket_name):
@@ -47,8 +42,6 @@ def create_bucket(bucket_name):
     bucket = storage_client.create_bucket(bucket_name)
     print('Bucket {} created'.format(bucket.name))
 
-
-SAMPLE_NAME = 'Instance timeout helper'
 
 CONFIG = {
     # In DRY_RUN mode, deletes are only logged. Set this to False after you've
@@ -69,11 +62,10 @@ CONFIG = {
     'GC_PROJECT': 'gtm-datalayer-audit',
     'GC_ZONE': 'europe-west1-b',
     'GC_NAME': 'gtm-datalayer-audit',
-    'GC_MACHINE_TYPE': 'n1-standard-4',
-    'EAM_CUSTOMER': 'conforama',
-    'AUDIT_COMMAND': 'npm run allPT',
-    'GC_BUCKET_NAME': 'gtm-datalayer-app-conforama',
-    'EAM_APP_REPOSITORY_NAME': 'gtm-datalayer-app'
+    'CUSTOMER_NAME': 'conforama',
+    'AUDIT_COMMAND': 'allPT',
+    'CLOUD_STORAGE_BUCKET': 'gtm-datalayer-app-conforama',
+    'APP_REPOSITORY_NAME': 'gtm-datalayer-app'
 
 }
 CONFIG['SAFE_TAGS'] = [t.lower() for t in CONFIG['SAFE_TAGS']]
@@ -86,11 +78,13 @@ CONFIG['SAFE_TAGS'] = [t.lower() for t in CONFIG['SAFE_TAGS']]
 jinja_environment = jinja2.Environment(
     loader=jinja2.FileSystemLoader('templates'))
 
+
 # [START list_instances]
 def list_instances(compute, project, zone):
     result = compute.instances().list(project=project, zone=zone).execute()
     return result['items']
 # [END list_instances]
+
 
 # [START create_instance]
 @app.route('/vm/create')
@@ -130,7 +124,7 @@ def create_vm():
             ]
         }],
 
-        # Allow the instance to access cloud storage and logging.
+        # Allow the instance to access cloud storage, logging and source repos.
         'serviceAccounts': [{
             'email': 'default',
             'scopes': [
@@ -155,19 +149,19 @@ def create_vm():
                 'key': 'audit_command',
                 'value': CONFIG['AUDIT_COMMAND']
             }, {
-                'key': 'eam_customer',
-                'value': CONFIG['EAM_CUSTOMER']
+                'key': 'customer_name',
+                'value': CONFIG['CUSTOMER_NAME']
             }, {
                 'key': 'bucket',
-                'value': CONFIG['GC_BUCKET_NAME']
+                'value': CONFIG['CLOUD_STORAGE_BUCKET']
             }, {
                 'key': 'source_repo',
-                'value': CONFIG['EAM_APP_REPOSITORY_NAME']
+                'value': CONFIG['APP_REPOSITORY_NAME']
             }]
         }
     }
 
-    create_bucket(CONFIG['GC_BUCKET_NAME'])
+    create_bucket(CONFIG['CLOUD_STORAGE_BUCKET'])
 
     result = compute.instances().insert(
         project=CONFIG['GC_PROJECT'],
@@ -244,7 +238,7 @@ def application_error(e):
 if __name__ == '__main__':
     app.run(debug=True)
 
-
+# SAMPLE_NAME = 'Instance timeout helper'
 # def start_instance():
 #     """logs all expired instances, calls delete API when not DRY_RUN"""
 #     instances = list_instances()
