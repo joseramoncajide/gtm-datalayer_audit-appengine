@@ -1,0 +1,4 @@
+cron:
+- description: start instance
+  url: /cron/start
+  schedule: every 1 hours synchronized
